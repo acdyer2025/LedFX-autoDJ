@@ -1,0 +1,11 @@
+# .gitignore
+
+#Spotify API Keys and Tokens
+secrets.py
+__pycache__
+.cache
+
+#Misc
+.vscode
+testingStuff.py
+songTriggersBackup.json

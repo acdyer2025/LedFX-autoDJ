@@ -1,0 +1,11 @@
+[
+    {
+        "id": "exampleID",
+        "name": "exampleName",
+        "scenes": {
+            "exampleScene0": 0,
+            "exampleScene10": 10000,
+            "exampleScene20": 20000
+        }
+    }
+]
