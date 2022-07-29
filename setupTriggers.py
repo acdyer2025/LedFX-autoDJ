@@ -32,11 +32,9 @@ for i in range(0, len(songTriggers)):
 def main():
     state = 0
     while(state == 0): #Ready to add a new trigger or view current ones
-
-
-
         userInput = input('Type a command and press enter. Type "help" for a list of commands\n')
-        match userInput:
+        userInputSplit = userInput.split()
+        match userInputSplit[0]:
             case 'help':
                 table = Texttable()
                 table.header(["Command", "Description", "Parameters"])
@@ -44,18 +42,33 @@ def main():
                 table.add_row(['listall', 'lists all the songs with current triggers', 'none'])
                 table.add_row(['list <songIndex>', 'lists all the triggers of the provided song index', 'index of song in songTriggers. Find using command listall'])
                 print(table.draw())
-                
+
             case 'add':
-                state = 1
+                addTrigger()
+            
             case 'listall':
                 table = Texttable()
-                table.header(['songIndex', 'songName', '# of triggers'])
+                table.header(['Song Index', 'Song Name', '# of Triggers'])
                 for i in range(0, len(songTriggers)):
                     table.add_row([i, songTriggers[i]['name'], len(list(songTriggers[i]['scenes']))])
                 print(table.draw())
-
             
+            case 'list':
+                listIndex = int(userInputSplit[1])
+                sceneList = list(songTriggers[listIndex]['scenes'])
+                table = Texttable()
+                table.header(['Trigger Number', 'Trigger Name', 'Timestamp'])
+                for i in range(0, len(sceneList)):
+                    table.add_row([i, sceneList[i], convertMillis(songTriggers[listIndex]['scenes'][sceneList[i]])])
+                print(table.draw())
 
+def convertMillis(millis):
+    seconds = str(int((millis/1000)%60))
+    minutes = str(int((millis/(1000*60))%60))
+    if(int(seconds) < 10):
+        seconds = '0'+seconds
+    timeString = '%s:%s' % (minutes, seconds)
+    return timeString
 
 def saveEffectsToFile():
     f = open('.\\songTriggers.json','w')
@@ -134,7 +147,7 @@ def addTrigger():
         print(e)
         return
 
-    sceneName = generateID(songName)+str(round(currentTimestamp/1000))
+    sceneName = generateID(songName+convertMillis(currentTimestamp))
     
     inList = False
     songIndex = 0
