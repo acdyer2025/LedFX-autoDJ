@@ -9,7 +9,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from secrets import Client_ID, Client_Secret #stored in secrets.py - this file is ignored by GIT
 
 scope = "user-read-playback-state,user-modify-playback-state"
-spotify = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope, client_id=Client_ID, client_secret=Client_Secret, redirect_uri='http://localhost'))
+spotify = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope, client_id=Client_ID, client_secret=Client_Secret, redirect_uri='https://www.google.com'))
 
 #load song effects list
 f = open('.\\songTriggers.json','r')
@@ -27,7 +27,7 @@ print(idList)
 def main():
 
     #start timer to poll spotify every 3 seconds to get current song
-    t = Timer(3, checkForSong, [idList, True])
+    t = Timer(5, checkForSong, [idList, True])
     t.start()
 
     while(True):
@@ -113,9 +113,8 @@ def checkForSong(idlist, startTimer):
     global songStatus
     print("checking for song")
 
-    #
     if(startTimer == True):
-        t = Timer(3, checkForSong, [idlist, True])
+        t = Timer(5, checkForSong, [idlist, True])
         t.start()
 
     try:

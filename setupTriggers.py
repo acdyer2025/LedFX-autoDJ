@@ -10,7 +10,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from secrets import Client_ID, Client_Secret #stored in secrets.py - this file is ignored by GIT
 
 scope = "user-read-playback-state,user-modify-playback-state"
-spotify = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope, client_id=Client_ID, client_secret=Client_Secret, redirect_uri='http://localhost'))
+spotify = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope, client_id=Client_ID, client_secret=Client_Secret, redirect_uri='https://www.google.com'))
 
 spotifyDevice = spotify.devices()
 spotifyDeviceID = spotifyDevice['devices'][0]['id']
