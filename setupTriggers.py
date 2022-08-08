@@ -1,6 +1,3 @@
-false = False
-true = True
-
 import json
 import requests
 import time
@@ -46,7 +43,7 @@ def main():
                         print(table.draw())
 
                     case 'add':
-                        tempSongIndex, tempSceneName = addTrigger()
+                        tempSongIndex, tempSceneName, tempTimestamp = addTrigger()
                         print("New trigger temporarily added, but not yet saved.")
                         state = 1
                     
@@ -80,10 +77,19 @@ def main():
             
             try:
                 match userInput:
+                    case 'help':
+                        table = Texttable()
+                        table.header(["Command", "Description"])
+                        table.add_row(['test', 'plays the current trigger to allow you to verify if the timestamp is set correctly'])
+                        table.add_row(['save', 'saves the trigger to the triggers file and returns to main menu'])
+                        table.add_row(['+', 'increases the timestamp of this trigger by 0.1 seconds'])
+                        table.add_row(['+...+', 'increases the timestamp of this trigger by 0.1 seconds times the number of pluses. For example, "+++" would increase the timestamp by 0.3 seconds'])
+                        table.add_row(['-', 'decreases the timestamp of this trigger by 0.1 seconds'])
+                        table.add_row(['-...-', 'decreases the timestamp of this trigger by 0.1 seconds times the number of minuses'])
+                        print(table.draw())
+
                     case 'test':
                         print('testing trigger...')
-                        print(tempSongIndex)
-                        print(tempSceneName)
                         testTrigger(tempSongIndex, tempSceneName)
 
                     case 'save':
@@ -95,7 +101,12 @@ def main():
                         state = -1
 
                     case _:
-                        print("Invalid command. Try again")
+                        if(userInput[0] == '+'):
+                            songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp + 100*len(userInput))
+                        elif(userInput[0] == '-'):
+                            songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp - 100*len(userInput))
+                        else:    
+                            print("Invalid command. Try again")
             except:
                 print('Invalid Command. Try again')
 
@@ -149,15 +160,15 @@ def setDeviceBlack(deviceID):
     payload = json.dumps(
         {
         "config": {
-            "mirror": false,
+            "mirror": 'false',
             "color": "#000000",
             "background_color": "#000000",
             "blur": 0.0,
             "modulation_speed": 0.5,
             "modulation_effect": "sine",
-            "flip": false,
+            "flip": 'false',
             "speed": 1.0,
-            "modulate": false,
+            "modulate": 'false',
             "brightness": 1.0,
             "background_brightness": 1.0
          },
@@ -210,7 +221,7 @@ def addTrigger():
         songTriggers.append(data)
 
     addScene(sceneName)
-    return songIndex, sceneName
+    return songIndex, sceneName, currentTimestamp
 
 def generateID(name):
     #converts name into an ID that matches what LedFX will convert it to
