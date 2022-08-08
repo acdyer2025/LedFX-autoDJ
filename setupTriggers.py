@@ -31,36 +31,74 @@ for i in range(0, len(songTriggers)):
 
 def main():
     state = 0
-    while(state == 0): #Ready to add a new trigger or view current ones
-        userInput = input('Type a command and press enter. Type "help" for a list of commands\n')
-        userInputSplit = userInput.split()
-        match userInputSplit[0]:
-            case 'help':
-                table = Texttable()
-                table.header(["Command", "Description", "Parameters"])
-                table.add_row(['add', 'adds a new trigger at the current timestamp in the current spotify song with the current light effects', 'none'])
-                table.add_row(['listall', 'lists all the songs with current triggers', 'none'])
-                table.add_row(['list <songIndex>', 'lists all the triggers of the provided song index', 'index of song in songTriggers. Find using command listall'])
-                print(table.draw())
+    while(state != -1): # -1 is the exit state, meaning we want to close the program
+        while(state == 0): #Ready to add a new trigger or view current ones
+            userInput = input('Type a command and press enter. Type "help" for a list of commands. Type "exit" to close the program.\n')
+            userInputSplit = userInput.split()
+            try:
+                match userInputSplit[0]:
+                    case 'help':
+                        table = Texttable()
+                        table.header(["Command", "Description", "Parameters"])
+                        table.add_row(['add', 'adds a new trigger at the current timestamp in the current spotify song with the current light effects', 'none'])
+                        table.add_row(['listall', 'lists all the songs with current triggers', 'none'])
+                        table.add_row(['list <songIndex>', 'lists all the triggers of the provided song index', 'index of song in songTriggers. Find using command listall'])
+                        print(table.draw())
 
-            case 'add':
-                addTrigger()
+                    case 'add':
+                        tempSongIndex, tempSceneName = addTrigger()
+                        print("New trigger temporarily added, but not yet saved.")
+                        state = 1
+                    
+                    case 'listall':
+                        table = Texttable()
+                        table.header(['Song Index', 'Song Name', '# of Triggers'])
+                        for i in range(0, len(songTriggers)):
+                            table.add_row([i, songTriggers[i]['name'], len(list(songTriggers[i]['scenes']))])
+                        print(table.draw())
+                    
+                    case 'list':
+                        listIndex = int(userInputSplit[1])
+                        sceneList = list(songTriggers[listIndex]['scenes'])
+                        table = Texttable()
+                        table.header(['Trigger Number', 'Trigger Name', 'Timestamp'])
+                        for i in range(0, len(sceneList)):
+                            table.add_row([i, sceneList[i], convertMillis(songTriggers[listIndex]['scenes'][sceneList[i]])])
+                        print(table.draw())
+        
+                    case 'exit':
+                        state = -1
+
+                    case _:
+                        print("Invalid command. Try again")
+            except:
+                print("Invalid command. Try again")
+        
+        while(state == 1): #A new trigger has been added, but not saved
+            print('Currently modifying a temporary Trigger. Type "save" to save this trigger and return to main menu.')
+            userInput = input('Type "help" for a list of commands to modify this trigger. Type "exit" to close the program.\n')
             
-            case 'listall':
-                table = Texttable()
-                table.header(['Song Index', 'Song Name', '# of Triggers'])
-                for i in range(0, len(songTriggers)):
-                    table.add_row([i, songTriggers[i]['name'], len(list(songTriggers[i]['scenes']))])
-                print(table.draw())
-            
-            case 'list':
-                listIndex = int(userInputSplit[1])
-                sceneList = list(songTriggers[listIndex]['scenes'])
-                table = Texttable()
-                table.header(['Trigger Number', 'Trigger Name', 'Timestamp'])
-                for i in range(0, len(sceneList)):
-                    table.add_row([i, sceneList[i], convertMillis(songTriggers[listIndex]['scenes'][sceneList[i]])])
-                print(table.draw())
+            try:
+                match userInput:
+                    case 'test':
+                        print('testing trigger...')
+                        print(tempSongIndex)
+                        print(tempSceneName)
+                        testTrigger(tempSongIndex, tempSceneName)
+
+                    case 'save':
+                        print("Trigger saved. Returning to main menu")
+                        saveEffectsToFile()
+                        state = 0
+
+                    case 'exit':
+                        state = -1
+
+                    case _:
+                        print("Invalid command. Try again")
+            except:
+                print('Invalid Command. Try again')
+
 
 def convertMillis(millis):
     seconds = str(int((millis/1000)%60))
@@ -153,14 +191,14 @@ def addTrigger():
     songIndex = 0
     for i in range(0, len(idList)):
         if(songID == idList[i]):
+            print('in list')
             songIndex = i
             inList = True
             songTriggers[i]['scenes'][sceneName] = currentTimestamp
-            saveEffectsToFile()
             break
-        else:
-            inList = False
     if(inList == False):
+        print('not in list')
+        idList.append(songID)
         data = {
         "id": songID,
         "name": songName,
@@ -168,8 +206,8 @@ def addTrigger():
             sceneName:currentTimestamp
             }
         }
+        songIndex = len(songTriggers)
         songTriggers.append(data)
-        saveEffectsToFile()
 
     addScene(sceneName)
     return songIndex, sceneName
@@ -182,22 +220,21 @@ def generateID(name):
 
 def testTrigger(songIndex, sceneName):
     changeScene('alloff')
-    try:
-        spotify.pause_playback()
-    except:
-        pass
+    playbackState = spotify.current_playback()
+    if(playbackState['is_playing'] == True):
+        spotify.pause_playback(spotifyDeviceID)
     
     if((songTriggers[songIndex]['scenes'][sceneName] - 2000) < 0):
         spotify.seek_track(0, spotifyDeviceID)
     else:
-        spotify.seek_track(songTriggers[songIndex]['scenes'][sceneName] - 2000, spotifyDeviceID)
+        spotify.seek_track((songTriggers[songIndex]['scenes'][sceneName] - 2000), spotifyDeviceID)
     
-    spotify.start_playback()
+    spotify.start_playback(spotifyDeviceID)
     time.sleep(2)
     changeScene(sceneName)
     time.sleep(2)
-    spotify.pause_playback()
-    spotify.seek_track(songTriggers[songIndex]['scenes'][sceneName])
+    spotify.pause_playback(spotifyDeviceID)
+    spotify.seek_track(songTriggers[songIndex]['scenes'][sceneName], spotifyDeviceID)
 
 
 if __name__ == "__main__":
