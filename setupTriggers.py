@@ -3,6 +3,7 @@ import requests
 import time
 import re
 from texttable import Texttable
+import threading
 
 #Spotipy is a python library that makes it very easy to work with the spotify API
 import spotipy
@@ -90,7 +91,7 @@ def main():
 
                     case 'test':
                         print('testing trigger...')
-                        testTrigger(tempSongIndex, tempSceneName)
+                        testTrigger(tempSongIndex, 8)
 
                     case 'save':
                         print("Trigger saved. Returning to main menu")
@@ -229,24 +230,88 @@ def generateID(name):
     part1 = re.sub("[^a-zA-Z0-9]", " ", name).lower()
     return re.sub(" +", " ", part1).strip().replace(" ", "-")
 
-def testTrigger(songIndex, sceneName):
-    changeScene('alloff')
+def testTrigger(songIndex, triggerTime):
     playbackState = spotify.current_playback()
+    currentTimestamp = playbackState['progress_ms']
     if(playbackState['is_playing'] == True):
         spotify.pause_playback(spotifyDeviceID)
     
-    if((songTriggers[songIndex]['scenes'][sceneName] - 2000) < 0):
+    if((currentTimestamp - ((triggerTime/2)*1000)) < 0):
         spotify.seek_track(0, spotifyDeviceID)
     else:
-        spotify.seek_track((songTriggers[songIndex]['scenes'][sceneName] - 2000), spotifyDeviceID)
+        spotify.seek_track(currentTimestamp - int(triggerTime/2 * 1000), spotifyDeviceID)
     
     spotify.start_playback(spotifyDeviceID)
-    time.sleep(2)
-    changeScene(sceneName)
-    time.sleep(2)
+    t = threading.Thread(target = playSongScenes, args=(songIndex, triggerTime), daemon=True)
+    t.start()
+    t.join()
     spotify.pause_playback(spotifyDeviceID)
-    spotify.seek_track(songTriggers[songIndex]['scenes'][sceneName], spotifyDeviceID)
+    spotify.seek_track(currentTimestamp, spotifyDeviceID)
 
+def playSongScenes(songIndex, temporaryTime):
+    currentSongSceneList = list(songTriggers[songIndex]['scenes'])
+    currentSongSceneList.sort()
+    currentSongTimestamps = []
+    for i in range(len(currentSongSceneList)):
+        currentSongTimestamps.append(songTriggers[songIndex]['scenes'][currentSongSceneList[i]])
+    currentSongTimestamps.sort()
+    
+    currentScene = ''
+    prevScene = ''
+    prevID = ''
+    onEndScene = False
+    exitFlag = False
+    prevTime = time.time()
+    currentTime = 0
+
+    while(exitFlag == False):
+        try:
+            currentPlayer = spotify.currently_playing()
+        except Exception as e:
+            print(e)
+            exitFlag = True
+            return exitFlag
+        else:
+            try:
+                currentSongID = currentPlayer['item']['id']
+                currentTimestamp = currentPlayer['progress_ms']
+                prevID = currentSongID
+            except TypeError:
+                print('Spotify Unavailable')
+                currentSongID = ''
+                exitFlag = True
+                return exitFlag
+            except Exception as e:
+                print(e)
+            
+            if(prevID != currentSongID):
+                exitFlag = True
+                return exitFlag
+            
+            for i in range(len(currentSongTimestamps)):
+                if(currentTimestamp <= currentSongTimestamps[i]):
+                    try:
+                        currentScene = currentSongSceneList[i-1]
+                        onEndScene = False
+                        break
+                    except IndexError:
+                        currentScene = currentSongSceneList[0]
+                        onEndScene = False
+                        break
+                else:
+                    onEndScene = True
+            
+            if(onEndScene == True):
+                currentScene = currentSongSceneList[-1] #grabs last scene in scene list
+
+            if(prevScene != currentScene):
+                changeScene(currentScene)
+                prevScene = currentScene
+        
+        if(temporaryTime != 0):
+            currentTime = time.time()
+            if((currentTime - prevTime) > temporaryTime):
+                exitFlag = True
 
 if __name__ == "__main__":
     main()
