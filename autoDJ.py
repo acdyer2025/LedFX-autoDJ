@@ -16,86 +16,91 @@ f = open('.\\songTriggers.json','r')
 songTriggers = json.load(f)
 f.close()
 
-#songStatus = ['state', index_in_songTriggers.json, duration_ms, progress_ms, is_paused]
-songStatus = ['',0,0,0,False]
 idList = []
 
-for i in range(0, len(songTriggers)):
+for i in range(len(songTriggers)):
     idList.append(songTriggers[i]['id'])
-print(idList)
+
+currentSongID = ''
 
 def main():
 
-    #start timer to poll spotify every 3 seconds to get current song
-    t = Timer(5, checkForSong, [idList, True])
+    #start timer to poll spotify every 2 seconds to get current song
+    t = Timer(2, checkForSong, [True])
     t.start()
 
+    global currentSongID
+    state = 0
+
     while(True):
-        global songStatus
-    
-        if(songStatus[0] == 'inList'): #the song spotify is currently playing is one that effects exist for
-            print('found song in list')
-            currentSong = songStatus[1] #this gives us the index of where the scenes for this song are in soundEffects.json
-            currentSongDuration = songStatus[2]
-            currentSongTimestamp = songStatus[3]
-            currentSongSceneList = list(songTriggers[currentSong]['scenes'])
-            timeStamps = [] 
-            for i in range(0, len(currentSongSceneList)):
-                timeStamps.append(songTriggers[currentSong]['scenes'][currentSongSceneList[i]])
-            
-            #The following is a very hacky method to get the effects to trigger exactly on the right 
-            #  timestamp of the song, as polling spotify constatntly to get the playback position would
-            #  quickly rate limit us by spotify, which nobody wants
-            #  There are better ways to do this, but this was quick to implement and works surprising well
-            #Essentially, we figure out exactly where we are in the song and then use the basic time.time
-            #  module to keep track of the playback without having to poll spotify
-            #pausing the song breaks this because the effects will still be sent since we are not
-            #  reyling on spotify anymore for the timestamp
-            
-            hasPlayed = list(timeStamps)
-            prevTime = time.time()*1000
-            prevSong = songStatus[1]
-
-            while((time.time()*1000 - prevTime) <= (currentSongDuration - currentSongTimestamp)):
-                #print("Running custom song effects")
-                if(songStatus[1] != prevSong):
-                    print("song changed")
-                    break
-                for i in range(0, len(timeStamps)):
-                    if(time.time()*1000 - prevTime + currentSongTimestamp > timeStamps[i]):
-                        if(hasPlayed[i] != True):
-                            changeScene(currentSongSceneList[i])
-                            hasPlayed[i] = True
-            
-            print("finished with current song")
-            time.sleep(1)
-            checkForSong(idList, False)
-
-        elif(songStatus[0] == 'none'):
-            print('found song not present in list')
+        
+        if(state == 0):
             changeScene('default')
-            currentSongDuration = songStatus[2]
-            currentSongTimestamp = songStatus[3]
-            prevTime = time.time()*1000
-            prevSong = songStatus[1]
+            while(state == 0): #checking to see if the current spotify song ID is one that special effects exist for
+                for i in range(len(idList)):
+                    if(currentSongID == idList[i]): #current song is one that special effects exist for
+                        state = 1
+                        break
+                    else:
+                        state = 0
+        
+        if(state == 1):
+            currentSongSceneList = list(songTriggers[i]['scenes'])
+            currentSongSceneList.sort()
+            currentSongTimestamps = []
+            for j in range(len(currentSongSceneList)):
+                currentSongTimestamps.append(songTriggers[i]['scenes'][currentSongSceneList[j]])
+            currentSongTimestamps.sort()
 
-            #wait in this loop until the exact end of the song, then check for next one.
-            #This allows us to theoreically get the effect to change right when the next song starts,
-            #as opposed to somewhere in the 3 second window that the spotify polling is occuring
-            while((time.time()*1000 - prevTime) <= (currentSongDuration - currentSongTimestamp)):
-                if(songStatus[1] != prevSong):
-                    print("song changed")
+            currentScene = ''
+            prevScene = ''
+            prevID = ''
+            onEndScene = False
+
+            while(state == 1):
+                try:
+                    currentPlayer = spotify.currently_playing()
+                except Exception as e:
+                    print(e)
+                    state = 0
                     break
+                else:
+                    try:
+                        currentSongID = currentPlayer['item']['id']
+                        currentTimestamp = currentPlayer['progress_ms']
+                        prevID = currentSongID
+                    except TypeError:
+                        print('Spotify Unavailable')
+                        state = 0
+                        currentSongID = ''
+                        break
+                    except Exception as e:
+                        print(e)
+                    
+                    if(prevID != currentSongID):
+                        state = 0
+                        break
+                    
+                    for i in range(len(currentSongTimestamps)):
+                        if(currentTimestamp <= currentSongTimestamps[i]):
+                            try:
+                                currentScene = currentSongSceneList[i-1]
+                                onEndScene = False
+                                break
+                            except IndexError:
+                                currentScene = currentSongSceneList[0]
+                                onEndScene = False
+                                break
+                        else:
+                            onEndScene = True
+                    
+                    if(onEndScene == True):
+                        currentScene = currentSongSceneList[-1] #grabs last scene in scene list
 
-            print("finished with current song")
-            time.sleep(1)
-            checkForSong(idList, False)
-
-        elif(songStatus[0] == 'spotifyUnavailable'):
-            print("Spotify Client Unavaiable")
-        else:
-            pass
-
+                    if(prevScene != currentScene):
+                        changeScene(currentScene)
+                        prevScene = currentScene
+        
 def changeScene(sceneName):
     url = "http://127.0.0.1:8888/api/scenes"
     payload = json.dumps({
@@ -108,36 +113,24 @@ def changeScene(sceneName):
     response = requests.request("PUT", url, headers=headers, data=payload)
     print(response.text)
 
-def checkForSong(idlist, startTimer):
-    
-    global songStatus
-    print("checking for song")
+def checkForSong(startTimer):
+    global currentSongID
 
     if(startTimer == True):
-        t = Timer(5, checkForSong, [idlist, True])
+        t = Timer(2, checkForSong, [True])
         t.start()
 
     try:
         currentPlayer = spotify.currently_playing()
-        songID = currentPlayer['item']['id']
-        songStatus[2] = currentPlayer['item']['duration_ms']
-        songStatus[3] = currentPlayer['progress_ms']
-        print(songStatus)
     except Exception as e:
         print(e)
-        songStatus = ['spotifyUnavailable', -1, -1, -1]
-        return
-
-    for songIndex in range(0, len(idlist)):
-        if(songID == idlist[songIndex]):
-            songStatus[0] = 'inList'
-            songStatus[1] = songIndex
-            return 
-        else:
-            pass
-    songStatus[0] = 'none'
-    songStatus[1] = -1
-    return
+    else:
+        try:
+            currentSongID = currentPlayer['item']['id']
+        except TypeError:
+            print('Spotify Unavailable')
+        except Exception as e:
+            print(e)
 
 if __name__ == "__main__":
     main()
