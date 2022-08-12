@@ -2,6 +2,7 @@ import threading
 import time
 from autoDJutils import * #contains utility functions and setup code that is shared between
                           #autoDJ and setupTriggers
+                          #this file MUST be imported for autoDJ to work
 
 currentSongID = ''
 
