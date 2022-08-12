@@ -5,21 +5,24 @@ from texttable import Texttable
 import threading
 from autoDJutils import * #contains utility functions and setup code that is shared between
                           #autoDJ and setupTriggers
+                          #this file MUST be imported for setupTriggers to work
 
 def main():
     state = 0
+    print('Welcome to the autoDJ scene setup utility. At any time, type "help" for a list of available commands. At any time, type "exit" to exit this utility.')
     while(state != -1): # -1 is the exit state, meaning we want to close the program
         while(state == 0): #Ready to add a new trigger or view current ones
-            userInput = input('Type a command and press enter. Type "help" for a list of commands. Type "exit" to close the program.\n')
+            userInput = input('Type a command and press enter.\n')
             userInputSplit = userInput.split()
             try:
                 match userInputSplit[0]:
                     case 'help':
                         table = Texttable()
-                        table.header(["Command", "Description", "Parameters"])
+                        table.header(['Command', 'Description', 'Parameters'])
                         table.add_row(['add', 'adds a new trigger at the current timestamp in the current spotify song with the current light effects', 'none'])
                         table.add_row(['listall', 'lists all the songs with current triggers', 'none'])
                         table.add_row(['list <songIndex>', 'lists all the triggers of the provided song index', 'index of song in songTriggers. Find using command listall'])
+                        table.add_row(['play <songIndex>', 'plays the song and effects at the provided song index', 'index of song in songTriggers. Find using command listall'])
                         print(table.draw())
 
                     case 'add':
@@ -42,6 +45,13 @@ def main():
                         for i in range(0, len(sceneList)):
                             table.add_row([i, sceneList[i], convertMillis(songTriggers[listIndex]['scenes'][sceneList[i]])])
                         print(table.draw())
+                    
+                    case 'play':
+                        playIndex = int(userInputSplit[1])
+                        playID = songTriggers[playIndex]['id']
+                        spotify.start_playback(spotifyDeviceID, uris=['spotify:track:'+playID])
+                        t = threading.Thread(target = playSongScenes, args=(playIndex, 0), daemon=True)
+                        t.start()
         
                     case 'exit':
                         state = -1
@@ -62,6 +72,7 @@ def main():
                         table.header(["Command", "Description"])
                         table.add_row(['test', 'plays the current trigger to allow you to verify if the timestamp is set correctly'])
                         table.add_row(['save', 'saves the trigger to the triggers file and returns to main menu'])
+                        table.add_row(['discard', 'discards the current trigger and returns to main menu'])
                         table.add_row(['+', 'increases the timestamp of this trigger by 0.1 seconds'])
                         table.add_row(['+...+', 'increases the timestamp of this trigger by 0.1 seconds times the number of pluses. For example, "+++" would increase the timestamp by 0.3 seconds'])
                         table.add_row(['-', 'decreases the timestamp of this trigger by 0.1 seconds'])
@@ -77,6 +88,16 @@ def main():
                         saveEffectsToFile()
                         state = 0
 
+                    case 'discard':
+                        print('trigger deleted. Returning to main menu')
+                        deleteScene(tempSceneName)
+                        songTriggers[tempSongIndex]['scenes'].pop(tempSceneName)
+                        if(len(songTriggers[tempSongIndex]['scenes']) == 0):
+                            IDtoRemove = songTriggers[tempSongIndex]['id']
+                            idList.remove(IDtoRemove)
+                            songTriggers.pop(tempSongIndex)
+                        state = 0
+
                     case 'exit':
                         state = -1
 
@@ -86,8 +107,9 @@ def main():
                         elif(userInput[0] == '-'):
                             songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp - 100*len(userInput))
                         else:    
-                            print("Invalid command. Try again")
-            except:
+                            print('Invalid command. Try again')
+            except Exception as e:
+                print(e)
                 print('Invalid Command. Try again')
 
 
@@ -109,8 +131,7 @@ def addScene(sceneName):
     url = "http://127.0.0.1:8888/api/scenes"
     headers = {'Content-Type': 'application/json'}
     try:
-        response = requests.request('POST', url=url, headers=headers, data=payload)
-        print(response)
+        requests.request('POST', url=url, headers=headers, data=payload)
     except Exception as e:
         print(e)
 
@@ -119,10 +140,7 @@ def deleteScene(sceneName):
     url = "http://127.0.0.1:8888/api/scenes"
     headers = {'Content-Type': 'application/json'}
     try:
-        response = requests.request('DELETE', url=url, headers=headers, data=payload)
-        responseObject = json.loads(response.text)
-        responseFormatted = json.dumps(responseObject, indent = 2)
-        print(responseFormatted)
+        requests.request('DELETE', url=url, headers=headers, data=payload)
     except Exception as e:
         print(e)
 
