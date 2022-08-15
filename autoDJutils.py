@@ -84,7 +84,9 @@ def playSongScenes(songIndex, temporaryTime):
                 currentScene = currentSongSceneList[-1] #grabs last scene in scene list
 
             if(prevScene != currentScene):
-                changeScene(currentScene)
+                if(changeScene(currentScene) != 200):
+                    time.sleep(1)
+                    changeScene(currentScene)
                 prevScene = currentScene
         
         if(temporaryTime != 0):
@@ -102,5 +104,9 @@ def changeScene(sceneName):
     headers = {
         'Content-Type': 'application/json'
     }
-    response = requests.request("PUT", url, headers=headers, data=payload)
-    print(response.text)
+    try:
+        response = requests.request("PUT", url, headers=headers, data=payload)
+        print(response.text)
+        return response.status_code
+    except Exception as e:
+        print(e)
