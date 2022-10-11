@@ -14,127 +14,122 @@ def main():
         while(state == 0): #Ready to add a new trigger or view current ones
             userInput = input('(Main Menu) Type a command and press enter.\n')
             userInputSplit = userInput.split()
-            try:
-                match userInputSplit[0]:
-                    case 'help':
-                        table = Texttable()
-                        table.header(['Command', 'Description', 'Parameters'])
-                        table.add_row(['add', 'adds a new trigger at the current timestamp in the current spotify song with the current light effects', 'none'])
-                        table.add_row(['listall', 'lists all the songs with current triggers', 'none'])
-                        table.add_row(['list <songIndex>', 'lists all the triggers of the provided song index', 'index of song in songTriggers. Find using command listall'])
-                        table.add_row(['play <songIndex>', 'plays the song and effects at the provided song index', 'index of song in songTriggers. Find using command listall'])
-                        table.add_row(['<device> off', 'sets the provided device to black', 'name of the device to set to black'])
-                        table.add_row(['alloff', 'sets all the devices to black', 'none'])
-                        table.add_row(['delete <songIndex>', 'deletes the song specified by songIndex', 'song to delete'])
-                        print(table.draw())
 
-                    case 'add':
-                        tempSongIndex, tempSceneName, tempTimestamp = addTrigger()
-                        print("New trigger temporarily added, but not yet saved.")
-                        state = 1
-                    
-                    case 'listall':
-                        table = Texttable()
-                        table.header(['Song Index', 'Song Name', '# of Triggers'])
-                        for i in range(0, len(songTriggers)):
-                            table.add_row([i, songTriggers[i]['name'], len(list(songTriggers[i]['scenes']))])
-                        print(table.draw())
-                    
-                    case 'list':
-                        state = 2
-                    
-                    case 'play':
-                        try:
-                            playIndex = int(userInputSplit[1])
-                            playID = songTriggers[playIndex]['id']
-                        except:
-                            print('Invalid songIndex')
-                        else:
-                            spotify.start_playback(spotifyDeviceID, uris=['spotify:track:'+playID])
-                            t = threading.Thread(target = playSongScenes, args=(playIndex, 0), daemon=True)
-                            t.start()
+            if(userInputSplit[0] == 'help'):
+                table = Texttable()
+                table.header(['Command', 'Description', 'Parameters'])
+                table.add_row(['add', 'adds a new trigger at the current timestamp in the current spotify song with the current light effects', 'none'])
+                table.add_row(['listall', 'lists all the songs with current triggers', 'none'])
+                table.add_row(['list <songIndex>', 'lists all the triggers of the provided song index', 'index of song in songTriggers. Find using command listall'])
+                table.add_row(['play <songIndex>', 'plays the song and effects at the provided song index', 'index of song in songTriggers. Find using command listall'])
+                table.add_row(['<device> off', 'sets the provided device to black', 'name of the device to set to black'])
+                table.add_row(['alloff', 'sets all the devices to black', 'none'])
+                table.add_row(['delete <songIndex>', 'deletes the song specified by songIndex', 'song to delete'])
+                print(table.draw())
 
-                    case 'alloff':
-                        changeScene('alloff')
-                        print('set all devices to black (off)')
+            elif(userInputSplit[0] == 'add'):
+                tempSongIndex, tempSceneName, tempTimestamp = addTrigger()
+                print("New trigger temporarily added, but not yet saved.")
+                state = 1
+                
+            elif(userInputSplit[0] == 'listall'):
+                table = Texttable()
+                table.header(['Song Index', 'Song Name', '# of Triggers'])
+                for i in range(0, len(songTriggers)):
+                    table.add_row([i, songTriggers[i]['name'], len(list(songTriggers[i]['scenes']))])
+                print(table.draw())
+            
+            elif(userInputSplit[0] == 'list'):
+                state = 2
+            
+            elif(userInputSplit[0] == 'play'):
+                try:
+                    playIndex = int(userInputSplit[1])
+                    playID = songTriggers[playIndex]['id']
+                except:
+                    print('Invalid songIndex')
+                else:
+                    spotify.start_playback(spotifyDeviceID, uris=['spotify:track:'+playID])
+                    t = threading.Thread(target = playSongScenes, args=(playIndex, 0), daemon=True)
+                    t.start()
 
-                    case 'delete':
-                        try:
-                            deleteIndex = int(userInputSplit[1])
-                            scenesToDelete = list(songTriggers[deleteIndex]['scenes'])
-                        except:
-                            print('Invalid songIndex')
-                        else:
-                            print('deleted all scenes for '+songTriggers[deleteIndex]['name'])
-                            for i in range(len(scenesToDelete)):
-                                deleteScene(scenesToDelete[i])
-                            
-                            IDtoRemove = songTriggers[deleteIndex]['id']
-                            idList.remove(IDtoRemove)
-                            songTriggers.pop(deleteIndex)
-                            saveEffectsToFile()
+            elif(userInputSplit[0] == 'alloff'):
+                changeScene('alloff')
+                print('set all devices to black (off)')
+
+            elif(userInputSplit[0] == 'delete'):
+                try:
+                    deleteIndex = int(userInputSplit[1])
+                    scenesToDelete = list(songTriggers[deleteIndex]['scenes'])
+                except:
+                    print('Invalid songIndex')
+                else:
+                    print('deleted all scenes for '+songTriggers[deleteIndex]['name'])
+                    for i in range(len(scenesToDelete)):
+                        deleteScene(scenesToDelete[i])
+                    
+                    IDtoRemove = songTriggers[deleteIndex]['id']
+                    idList.remove(IDtoRemove)
+                    songTriggers.pop(deleteIndex)
+                    saveEffectsToFile()
     
-                    case 'exit':
-                        state = -1
+            elif(userInputSplit[0] == 'exit'):
+                state = -1
 
-                    case _:
-                        if(userInputSplit[1] == 'off'):
-                            setDeviceBlack(userInputSplit[0])
-                            print('set '+userInputSplit[0]+' to black (off)')
-                        else:
-                            print("Invalid command. Try again")
-            except:
-                print("Invalid command. Try again")
+            else:
+                try:
+                    if(userInputSplit[1] == 'off'):
+                        setDeviceBlack(userInputSplit[0])
+                        print('set '+userInputSplit[0]+' to black (off)')
+                    else:
+                        print("Invalid command. Try again")
+                except:
+                    print('Invalid command. Try again')
         
         while(state == 1): #A new trigger has been added, but not saved
             userInput = input('(Modifying a temporary Trigger) Type a command and press enter. Type "save" to save this trigger\n')
             
-            try:
-                match userInput:
-                    case 'help':
-                        table = Texttable()
-                        table.header(["Command", "Description"])
-                        table.add_row(['test', 'plays the current trigger to allow you to verify if the timestamp is set correctly'])
-                        table.add_row(['save', 'saves the trigger to the triggers file and returns to main menu'])
-                        table.add_row(['discard', 'discards the current trigger and returns to main menu'])
-                        table.add_row(['+', 'increases the timestamp of this trigger by 0.1 seconds'])
-                        table.add_row(['+...+', 'increases the timestamp of this trigger by 0.1 seconds times the number of pluses. For example, "+++" would increase the timestamp by 0.3 seconds'])
-                        table.add_row(['-', 'decreases the timestamp of this trigger by 0.1 seconds'])
-                        table.add_row(['-...-', 'decreases the timestamp of this trigger by 0.1 seconds times the number of minuses'])
-                        print(table.draw())
+            if(userInput == 'help'):
+                table = Texttable()
+                table.header(["Command", "Description"])
+                table.add_row(['test', 'plays the current trigger to allow you to verify if the timestamp is set correctly'])
+                table.add_row(['save', 'saves the trigger to the triggers file and returns to main menu'])
+                table.add_row(['discard', 'discards the current trigger and returns to main menu'])
+                table.add_row(['+', 'increases the timestamp of this trigger by 0.1 seconds'])
+                table.add_row(['+...+', 'increases the timestamp of this trigger by 0.1 seconds times the number of pluses. For example, "+++" would increase the timestamp by 0.3 seconds'])
+                table.add_row(['-', 'decreases the timestamp of this trigger by 0.1 seconds'])
+                table.add_row(['-...-', 'decreases the timestamp of this trigger by 0.1 seconds times the number of minuses'])
+                print(table.draw())
 
-                    case 'test':
-                        print('testing trigger...')
-                        testTrigger(tempSongIndex, 6)
+            elif(userInput == 'test'):
+                print('testing trigger...')
+                testTrigger(tempSongIndex, 6)
 
-                    case 'save':
-                        print("Trigger saved. Returning to main menu")
-                        saveEffectsToFile()
-                        state = 0
+            elif(userInput == 'save'):
+                print("Trigger saved. Returning to main menu")
+                saveEffectsToFile()
+                state = 0
 
-                    case 'discard':
-                        print('trigger deleted. Returning to main menu')
-                        deleteScene(tempSceneName)
-                        songTriggers[tempSongIndex]['scenes'].pop(tempSceneName)
-                        if(len(songTriggers[tempSongIndex]['scenes']) == 0):
-                            IDtoRemove = songTriggers[tempSongIndex]['id']
-                            idList.remove(IDtoRemove)
-                            songTriggers.pop(tempSongIndex)
-                        state = 0
+            elif(userInput == 'discard'):
+                print('trigger deleted. Returning to main menu')
+                deleteScene(tempSceneName)
+                songTriggers[tempSongIndex]['scenes'].pop(tempSceneName)
+                if(len(songTriggers[tempSongIndex]['scenes']) == 0):
+                    IDtoRemove = songTriggers[tempSongIndex]['id']
+                    idList.remove(IDtoRemove)
+                    songTriggers.pop(tempSongIndex)
+                state = 0
 
-                    case 'exit':
-                        state = -1
+            elif(userInput == 'exit'):
+                state = -1
 
-                    case _:
-                        if(userInput[0] == '+'):
-                            songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp + 100*len(userInput))
-                        elif(userInput[0] == '-'):
-                            songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp - 100*len(userInput))
-                        else:    
-                            print('Invalid command. Try again')
-            except Exception as e:
-                print(e)
-                print('Invalid Command. Try again')
+            else:
+                if(userInput[0] == '+'):
+                    songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp + 100*len(userInput))
+                elif(userInput[0] == '-'):
+                    songTriggers[tempSongIndex]['scenes'][tempSceneName] = (tempTimestamp - 100*len(userInput))
+                else:    
+                    print('Invalid command. Try again')
 
         while(state == 2):
             try:
@@ -152,70 +147,67 @@ def main():
 
                 newUserInput = input('(currently viewing effects for '+ songTriggers[listIndex]['name']+ ') Type a command and press Enter. Type "return" to return to main menu\n')
                 newUserInputSplit = newUserInput.split()
-                try:
-                    match newUserInputSplit[0]:
-                        case 'help':
-                            table = Texttable()
-                            table.header(["Command", "Description"])
-                            table.add_row(['return', 'returns to main menu'])
-                            table.add_row(['play <triggerIndex>', 'plays the trigger specified by <triggerIndex> at its timestamp'])
-                            table.add_row(['delete <triggerIndex>', 'deletes the trigger at the specified <triggerIndex>'])
-                            table.add_row(['deleteall', 'deletes all the triggers and returns to main menu'])
-                            print(table.draw())
 
-                        case 'return':
-                            print('returning to main menu')
-                            state = 0
-                        
-                        case 'play':
-                            try:
-                                testIndex = int(newUserInputSplit[1])
-                                sceneToPlay = sceneList[testIndex]
-                            except:
-                                print('Invalid triggerIndex')
-                            else:
-                                playID = songTriggers[listIndex]['id']
-                                spotify.start_playback(spotifyDeviceID, uris=['spotify:track:'+playID])
-                                spotify.seek_track(songTriggers[listIndex]['scenes'][sceneToPlay], spotifyDeviceID)
-                                spotify.pause_playback(spotifyDeviceID)
-                                time.sleep(0.5)
-                                testTrigger(listIndex, 8)
+                if(newUserInputSplit[0] == 'help'):
+                    table = Texttable()
+                    table.header(["Command", "Description"])
+                    table.add_row(['return', 'returns to main menu'])
+                    table.add_row(['play <triggerIndex>', 'plays the trigger specified by <triggerIndex> at its timestamp'])
+                    table.add_row(['delete <triggerIndex>', 'deletes the trigger at the specified <triggerIndex>'])
+                    table.add_row(['deleteall', 'deletes all the triggers and returns to main menu'])
+                    print(table.draw())
 
-                        case 'delete':
-                            try:
-                                deleteIndex = int(newUserInputSplit[1])
-                                sceneToDelete = sceneList[deleteIndex]
-                            except:
-                                print('Invalid triggerIndex')
-                            else:
-                                deleteScene(sceneToDelete)
-                                songTriggers[listIndex]['scenes'].pop(sceneToDelete)
-                                if(len(songTriggers[listIndex]['scenes']) == 0):
-                                    IDtoRemove = songTriggers[listIndex]['id']
-                                    idList.remove(IDtoRemove)
-                                    songTriggers.pop(listIndex)
-                                    print('This song has no more triggers. Returning to main menu')
-                                    state = 0
-                                saveEffectsToFile()
-                        
-                        case 'deleteall':                                
-                            print('deleted all scenes for '+songTriggers[listIndex]['name']+ '. Returning to main menu')
-                            for i in range(len(sceneList)):
-                                deleteScene(sceneList[i])
-                            
+                elif(newUserInputSplit[0] == 'return'):
+                    print('returning to main menu')
+                    state = 0
+                    
+                elif(newUserInputSplit[0] == 'play'):
+                    try:
+                        testIndex = int(newUserInputSplit[1])
+                        sceneToPlay = sceneList[testIndex]
+                    except:
+                        print('Invalid triggerIndex')
+                    else:
+                        playID = songTriggers[listIndex]['id']
+                        spotify.start_playback(spotifyDeviceID, uris=['spotify:track:'+playID])
+                        spotify.seek_track(songTriggers[listIndex]['scenes'][sceneToPlay], spotifyDeviceID)
+                        spotify.pause_playback(spotifyDeviceID)
+                        time.sleep(0.5)
+                        testTrigger(listIndex, 8)
+
+                elif(newUserInputSplit[0] == 'delete'):
+                    try:
+                        deleteIndex = int(newUserInputSplit[1])
+                        sceneToDelete = sceneList[deleteIndex]
+                    except:
+                        print('Invalid triggerIndex')
+                    else:
+                        deleteScene(sceneToDelete)
+                        songTriggers[listIndex]['scenes'].pop(sceneToDelete)
+                        if(len(songTriggers[listIndex]['scenes']) == 0):
                             IDtoRemove = songTriggers[listIndex]['id']
                             idList.remove(IDtoRemove)
                             songTriggers.pop(listIndex)
-                            saveEffectsToFile()
-                            
+                            print('This song has no more triggers. Returning to main menu')
                             state = 0
-                        
-                        case 'exit':
-                            state = -1
-                        
-                        case _:
-                            print('Invalid Command. Try again')
-                except:
+                        saveEffectsToFile()
+                    
+                elif(newUserInputSplit[0] == 'deleteall'):
+                    print('deleted all scenes for '+songTriggers[listIndex]['name']+ '. Returning to main menu')
+                    for i in range(len(sceneList)):
+                        deleteScene(sceneList[i])
+                    
+                    IDtoRemove = songTriggers[listIndex]['id']
+                    idList.remove(IDtoRemove)
+                    songTriggers.pop(listIndex)
+                    saveEffectsToFile()
+                    
+                    state = 0
+                    
+                elif(newUserInputSplit[0] == 'exit'):
+                    state = -1
+                    
+                else:
                     print('Invalid Command. Try again')
 
 

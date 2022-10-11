@@ -9,3 +9,6 @@ __pycache__
 .vscode
 testingStuff.py
 songTriggersBackup.json
+
+#venv
+venv
